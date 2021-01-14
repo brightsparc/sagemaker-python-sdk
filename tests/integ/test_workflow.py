@@ -137,6 +137,13 @@ def test_three_step_definition(
 
     input_data = f"s3://sagemaker-sample-data-{region_name}/processing/census/census-income.csv"
 
+    tags = [{"Key": "TagtestKey", "Value": "TagtestValue"}]
+    experiment_config = {
+        "ExperimentName": "exp",
+        "TrialName": "trial",
+        "TrialComponentDisplayName": "tc",
+    }
+
     sklearn_processor = SKLearnProcessor(
         framework_version=framework_version,
         instance_type=instance_type,
@@ -144,6 +151,7 @@ def test_three_step_definition(
         base_job_name="test-sklearn",
         sagemaker_session=sagemaker_session,
         role=role,
+        tags=tags,
     )
     step_process = ProcessingStep(
         name="my-process",
@@ -157,6 +165,7 @@ def test_three_step_definition(
             ProcessingOutput(output_name="test_data", source="/opt/ml/processing/test"),
         ],
         code=os.path.join(script_dir, "preprocessing.py"),
+        experiment_config=experiment_config,
     )
 
     sklearn_train = SKLearn(
@@ -165,6 +174,7 @@ def test_three_step_definition(
         instance_type=instance_type,
         sagemaker_session=sagemaker_session,
         role=role,
+        tags=tags,
     )
     step_train = TrainingStep(
         name="my-train",
@@ -174,6 +184,7 @@ def test_three_step_definition(
                 "train_data"
             ].S3Output.S3Uri
         ),
+        experiment_config=experiment_config,
     )
 
     model = Model(
@@ -252,6 +263,12 @@ def test_three_step_definition(
         "Get": "Steps.my-train.ModelArtifacts.S3ModelArtifacts"
     }
 
+    for args in [processing_args, training_args]:
+        assert args["Tags"][0]["Key"] == "TagtestKey"
+        assert args["ExperimentConfig"]["ExperimentName"] == "exp"
+        assert args["ExperimentConfig"]["TrialName"] == "trial"
+        assert args["ExperimentConfig"]["TrialComponentDisplayName"] == "tc"
+
 
 # TODO-reinvent-2020: Modify use of the workflow client
 def test_one_step_sklearn_processing_pipeline(
@@ -272,6 +289,13 @@ def test_one_step_sklearn_processing_pipeline(
         ProcessingInput(dataset_definition=athena_dataset_definition),
     ]
 
+    tags = [{"Key": "TagtestKey", "Value": "TagtestValue"}]
+    experiment_config = {
+        "ExperimentName": "exp",
+        "TrialName": "trial",
+        "TrialComponentDisplayName": "tc",
+    }
+
     sklearn_processor = SKLearnProcessor(
         framework_version=sklearn_latest_version,
         role=role,
@@ -280,6 +304,7 @@ def test_one_step_sklearn_processing_pipeline(
         command=["python3"],
         sagemaker_session=sagemaker_session,
         base_job_name="test-sklearn",
+        tags=tags,
     )
 
     step_sklearn = ProcessingStep(
@@ -287,6 +312,7 @@ def test_one_step_sklearn_processing_pipeline(
         processor=sklearn_processor,
         inputs=inputs,
         code=script_path,
+        experiment_config=experiment_config,
     )
     pipeline = Pipeline(
         name=pipeline_name,
@@ -361,6 +387,13 @@ def test_conditional_pytorch_training_model_registration(
     instance_type = ParameterString(name="InstanceType", default_value="ml.m5.xlarge")
     good_enough_input = ParameterInteger(name="GoodEnoughInput", default_value=1)
 
+    tags = [{"Key": "TagtestKey", "Value": "TagtestValue"}]
+    experiment_config = {
+        "ExperimentName": "exp",
+        "TrialName": "trial",
+        "TrialComponentDisplayName": "tc",
+    }
+
     pytorch_estimator = PyTorch(
         entry_point=entry_point,
         role=role,
@@ -369,11 +402,13 @@ def test_conditional_pytorch_training_model_registration(
         instance_count=instance_count,
         instance_type=instance_type,
         sagemaker_session=sagemaker_session,
+        tags=tags,
     )
     step_train = TrainingStep(
         name="pytorch-train",
         estimator=pytorch_estimator,
         inputs=inputs,
+        experiment_config=experiment_config,
     )
 
     step_register = RegisterModel(
@@ -468,6 +503,13 @@ def test_training_job_with_debugger(
     )
     inputs = TrainingInput(s3_data=input_path)
 
+    tags = [{"Key": "TagtestKey", "Value": "TagtestValue"}]
+    experiment_config = {
+        "ExperimentName": "exp",
+        "TrialName": "trial",
+        "TrialComponentDisplayName": "tc",
+    }
+
     pytorch_estimator = PyTorch(
         entry_point=script_path,
         role="SageMakerRole",
@@ -478,12 +520,14 @@ def test_training_job_with_debugger(
         sagemaker_session=sagemaker_session,
         rules=rules,
         debugger_hook_config=debugger_hook_config,
+        tags=tags,
     )
 
     step_train = TrainingStep(
         name="pytorch-train",
         estimator=pytorch_estimator,
         inputs=inputs,
+        experiment_config=experiment_config,
     )
 
     pipeline = Pipeline(
